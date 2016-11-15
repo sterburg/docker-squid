@@ -16,8 +16,12 @@ RUN yum clean all && \
     systemctl enable squid && \
     yum clean all
 
-RUN chown -R 1001:1001 /etc/squid /var/log/squid && \
-    chmod -R 775 /var/log/squid
+COPY conf/squid.conf /etc/squid/squid.conf
+
+RUN mkdir /etc/squid/conf.d && \
+    chown -R 1001:1001   /etc/squid /var/log/squid && \
+    chmod -R a+rX  /etc/squid && \
+    chmod -R a+rwX /var/log/squid
 
 USER 1001
 
