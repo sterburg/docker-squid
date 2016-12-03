@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: squid
+objects:
+- apiVersion: v1
+  data:
+    sites.whitelist.txt: |
+      .example.com
+      .google.com
+    squid.conf: |
+      acl whitelist dstdomain "/etc/squid/conf.d/sites.whitelist.txt"
+      acl http proto http
+      acl port_80 port 80
+      acl port_443 port 443
+      acl CONNECT method CONNECT
+
+      http_access allow http port_80 whitelist
+      http_access allow CONNECT port_443 whitelist
+
+      http_access deny all
+  kind: ConfigMap
+  metadata:
+    name: squid
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: squid
+    name: squid
+  spec:
+    replicas: 1
+    selector:
+      app: squid
+      deploymentconfig: squid
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+          openshift.io/container.squid.image.entrypoint: '["/bin/bash"]'
+        creationTimestamp: null
+        labels:
+          app: squid
+          deploymentconfig: squid
+      spec:
+        containers:
+        - image: 10.204.242.20:5000/ops/squid:latest
+          imagePullPolicy: Always
+          name: squid
+          ports:
+          - containerPort: 3128
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /etc/squid/conf.d/
+            name: conf
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - configMap:
+            name: squid
+          name: conf
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - squid
+        from:
+          kind: ImageStreamTag
+          name: squid:latest
+          namespace: ops
+      type: ImageChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: null
+    labels:
+      app: squid
+    name: proxy
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 3128
+    selector:
+      app: squid
+      deploymentconfig: squid
+    sessionAffinity: None
+    type: ClusterIP
+

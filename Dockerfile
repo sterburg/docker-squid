@@ -10,10 +10,8 @@ LABEL io.k8s.description="Squid Proxy" \
       io.openshift.tags="squid" \
       io.openshift.expose-services="3128:tcp"
 
-RUN yum clean all && \
-    yum -y update && \
+RUN yum -y update && \
     yum install -y squid && \
-    systemctl enable squid && \
     yum clean all
 
 COPY conf/squid.conf /etc/squid/squid.conf
@@ -29,4 +27,4 @@ EXPOSE 3128/tcp
 
 VOLUME ["${SQUID_CACHE_DIR}"]
 
-CMD ["squid","-f","/etc/squid/squid.conf","-N"]
+CMD ["squid","-f","/etc/squid/squid.conf","-N","-d3"]
